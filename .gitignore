@@ -1,0 +1,30 @@
+# Secrets - NEVER commit
+.env
+.env.*
+!.env.example
+*-credentials.json
+*-secrets.json
+service-account*.json
+api-key*.txt
+*.pem
+*.key
+
+# Confluent CLI local state
+.confluent/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Runtime
+logs/
+*.log
+tmp/
+node_modules/
+venv/
+.venv/
+__pycache__/
+*.pyc

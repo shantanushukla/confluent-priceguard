@@ -230,8 +230,7 @@ for and the demand never arrived — margin given away for nothing.
 flink/     Flink SQL statements, numbered in dependency order
 schemas/   Custom Avro schemas driving the Datagen connectors
 scripts/   recreate-all.sh, query.sh, teardown.sh, confluent-env.sh
-docs/      architecture.md, outputs-explained.md, submission-answers.md,
-           versioning-and-cicd.md
+docs/      architecture.md, outputs-explained.md
 ```
 
 ---

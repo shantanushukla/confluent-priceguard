@@ -1,0 +1,72 @@
+{
+  "namespace": "priceguard",
+  "name": "price_change",
+  "type": "record",
+  "doc": "A price change event: someone moved a price and is betting on a demand response.",
+  "fields": [
+    {
+      "name": "product_id",
+      "type": {
+        "type": "string",
+        "arg.properties": {
+          "options": ["SKU-1001","SKU-1002","SKU-1003","SKU-1004","SKU-1005",
+                      "SKU-1006","SKU-1007","SKU-1008","SKU-1009","SKU-1010"]
+        }
+      }
+    },
+    {
+      "name": "category",
+      "type": {
+        "type": "string",
+        "arg.properties": {
+          "options": ["footwear","apparel","electronics","grocery","home"]
+        }
+      }
+    },
+    {
+      "name": "old_price_cents",
+      "type": { "type": "int", "arg.properties": { "range": { "min": 2000, "max": 50000 } } }
+    },
+    {
+      "name": "new_price_cents",
+      "doc": "The payload. Mostly sane markdowns, plus planted failures: 1 (decimal slip), 0 (free), 9999999 (fat finger).",
+      "type": {
+        "type": "int",
+        "arg.properties": {
+          "options": [1499,1999,2499,2999,3499,3999,4499,4999,5999,6999,
+                      7999,8999,9999,12999,14999,19999,24999,29999,
+                      1, 0, 9999999]
+        }
+      }
+    },
+    {
+      "name": "cost_cents",
+      "doc": "Unit cost. Margin = paid_price - cost.",
+      "type": { "type": "int", "arg.properties": { "range": { "min": 1500, "max": 25000 } } }
+    },
+    {
+      "name": "change_reason",
+      "type": {
+        "type": "string",
+        "arg.properties": {
+          "options": ["promo","clearance","competitive","manual-override"]
+        }
+      }
+    },
+    {
+      "name": "intended_lift_pct",
+      "doc": "THE BET. Expected demand increase from this change. Lets the loop compare intent against outcome instead of guessing a threshold.",
+      "type": { "type": "int", "arg.properties": { "range": { "min": 5, "max": 60 } } }
+    },
+    {
+      "name": "changed_by",
+      "doc": "Which upstream system set this price - lets the demo name a culprit.",
+      "type": {
+        "type": "string",
+        "arg.properties": {
+          "options": ["pricing-engine","promo-service","vendor-feed","manual-console"]
+        }
+      }
+    }
+  ]
+}

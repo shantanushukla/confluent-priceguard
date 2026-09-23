@@ -1,0 +1,50 @@
+{
+  "namespace": "priceguard",
+  "name": "sales_event",
+  "type": "record",
+  "doc": "An individual sale. Produced independently of the price feed - correlated only by event time.",
+  "fields": [
+    {
+      "name": "sale_id",
+      "type": { "type": "string", "arg.properties": { "length": 12 } }
+    },
+    {
+      "name": "product_id",
+      "doc": "Same SKU universe as price-changes - this is the join key.",
+      "type": {
+        "type": "string",
+        "arg.properties": {
+          "options": ["SKU-1001","SKU-1002","SKU-1003","SKU-1004","SKU-1005",
+                      "SKU-1006","SKU-1007","SKU-1008","SKU-1009","SKU-1010"]
+        }
+      }
+    },
+    {
+      "name": "units",
+      "doc": "Velocity signal. Skewed low with an occasional spike so surges stand out.",
+      "type": {
+        "type": "int",
+        "arg.properties": { "options": [1,1,1,1,2,2,2,3,3,4,5,8,12,20,35] }
+      }
+    },
+    {
+      "name": "paid_price_cents",
+      "doc": "What the customer was actually charged.",
+      "type": { "type": "int", "arg.properties": { "range": { "min": 1, "max": 50000 } } }
+    },
+    {
+      "name": "channel",
+      "type": {
+        "type": "string",
+        "arg.properties": { "options": ["web","store","app","marketplace"] }
+      }
+    },
+    {
+      "name": "region",
+      "type": {
+        "type": "string",
+        "arg.properties": { "options": ["US-EAST","US-WEST","US-CENTRAL","CA","MX"] }
+      }
+    }
+  ]
+}

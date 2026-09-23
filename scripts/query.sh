@@ -44,7 +44,31 @@ MAX_POLLS="${2:-25}"
 SUBMIT_JSON=$(mktemp "${TMPDIR:-/tmp}/pg_submit.XXXXXX")
 ROWS_FILE=$(mktemp "${TMPDIR:-/tmp}/pg_rows.XXXXXX")
 CURL_CFG=$(mktemp "${TMPDIR:-/tmp}/pg_curl.XXXXXX")
-trap 'rm -f "$SUBMIT_JSON" "$ROWS_FILE" "$CURL_CFG"' EXIT
+
+# Every query creates a real Flink statement server-side. Deleting it only on the
+# happy path was a leak: a submit failure, a FAILED phase, or a Ctrl-C all left an
+# orphan behind. Those orphans are not free - they clutter `statement list` and,
+# worse, each one becomes a node in the Stream Lineage graph, which is the artifact
+# this project is judged on. A dozen stray `q-*` nodes make the architecture
+# unreadable.
+#
+# STATEMENT_NAME is declared empty up front so the trap is safe to install before
+# the statement exists, and is populated only once submission actually succeeds.
+STATEMENT_NAME=""
+cleanup() {
+  local rc=$?
+  if [[ -n "$STATEMENT_NAME" ]]; then
+    curl -sS -K "$CURL_CFG" -X DELETE "$BASE/statements/$STATEMENT_NAME" >/dev/null 2>&1 \
+      || echo "warning: could not delete statement $STATEMENT_NAME - remove it with:
+  confluent flink statement delete $STATEMENT_NAME --cloud $PG_CLOUD --region $PG_REGION --force" >&2
+  fi
+  rm -f "$SUBMIT_JSON" "$ROWS_FILE" "$CURL_CFG"
+  exit "$rc"
+}
+# INT and TERM are listed explicitly: bash does not fire an EXIT trap on an
+# uncaught signal, and Ctrl-C during a long poll is the single most likely way
+# this script ends.
+trap cleanup EXIT INT TERM
 
 # Credentials go in a 0600 curl config file, never in `-u key:secret` - argv is
 # world-readable through `ps auxww`. mktemp creates the file 0600 already;
@@ -65,6 +89,37 @@ fi
 
 BASE="https://flink.${PG_REGION}.${PG_CLOUD}.confluent.cloud/sql/v1/organizations/${ORG_ID}/environments/${PG_ENV_ID}"
 NAME="q-$(date +%s)-$RANDOM"
+
+# Sweep orphans from earlier runs before adding our own.
+#
+# The cleanup trap covers every normal exit and SIGINT/SIGTERM, but nothing can
+# catch SIGKILL or a hard terminal kill - those still strand a statement. Each
+# orphan becomes a node in the Stream Lineage graph, which is the artifact this
+# project is judged on, so a slow accumulation of stray `q-*` nodes quietly
+# ruins the diagram.
+#
+# Only `q-*` names are touched: those are created by this script and nothing else.
+# Pipeline statements are all named `pg-*` and are never matched.
+ORPHANS=$(curl -sS -K "$CURL_CFG" "$BASE/statements?page_size=100" 2>/dev/null \
+  | python3 -c '
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    for s in d.get("data", []):
+        n = s.get("name", "")
+        if n.startswith("q-"):
+            print(n)
+except Exception:
+    pass
+' 2>/dev/null)
+
+if [[ -n "$ORPHANS" ]]; then
+  COUNT=$(echo "$ORPHANS" | wc -l | tr -d ' ')
+  echo "sweeping $COUNT orphaned query statement(s) from a previous run" >&2
+  while IFS= read -r o; do
+    [[ -n "$o" ]] && curl -sS -K "$CURL_CFG" -X DELETE "$BASE/statements/$o" >/dev/null 2>&1
+  done <<< "$ORPHANS"
+fi
 
 BODY=$(python3 -c '
 import json,sys,os
@@ -92,6 +147,10 @@ if [[ "$PHASE" == "?" || -z "$PHASE" || "$PHASE" == "FAILED" ]]; then
     || head -c 900 "$SUBMIT_JSON"
   exit 1
 fi
+
+# The statement now exists server-side, so arm the cleanup trap. Everything past
+# this line - including a FAILED phase or a Ctrl-C mid-poll - will delete it.
+STATEMENT_NAME="$NAME"
 
 # Wait for the statement to leave PENDING.
 for _ in $(seq 1 15); do
@@ -132,4 +191,4 @@ done
 
 [[ "$ROWS" -eq 0 ]] && echo "(no rows returned within $MAX_POLLS polls)"
 
-curl -sS -K "$CURL_CFG" -X DELETE "$BASE/statements/$NAME" >/dev/null 2>&1
+# No explicit DELETE here - the cleanup trap handles it on every exit path.

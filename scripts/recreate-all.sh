@@ -41,10 +41,23 @@ die()  { printf '\n\033[0;31mFAILED: %s\033[0m\n' "$*" >&2; exit 1; }
 jget() {
   python3 -c '
 import sys, json
+raw = sys.stdin.read()
 try:
-    doc = json.load(sys.stdin)
+    doc = json.loads(raw)
 except Exception:
-    sys.exit(1)
+    # Some confluent subcommands append a human-readable line AFTER the JSON
+    # even under --output json. `api-key create --use` is the one that bit us:
+    # it prints the {api_key, api_secret} object and then
+    #     Using API Key "XXXX".
+    # json.loads sees that trailing line as "Extra data" and raises, jget exits
+    # non-zero, and under `set -euo pipefail` the whole script dies with no
+    # message - after the key has already been created in the cloud.
+    # raw_decode parses the leading JSON value and simply ignores whatever
+    # follows it, which is exactly the tolerance we want.
+    try:
+        doc, _ = json.JSONDecoder().raw_decode(raw.lstrip())
+    except Exception:
+        sys.exit(1)
 field = sys.argv[1]
 fkey = fval = None
 if len(sys.argv) > 2:

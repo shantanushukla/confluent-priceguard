@@ -31,10 +31,10 @@ rules out batch. Section 6 expands on this.
 |---|---|
 | Cloud / region | AWS `us-east-1` |
 | Organization | Walmart |
-| Environment | `env-poxrrk` |
-| Kafka cluster | `lkc-pgw3j8k` |
-| Schema Registry | `lsrc-v78z63n` (Essentials package) |
-| Flink compute pool | `lfcp-125m5jj` |
+| Environment | `env-53dw0n` |
+| Kafka cluster | `lkc-9k5qo5y` |
+| Schema Registry | `lsrc-j5zg2z2` (Essentials package) |
+| Flink compute pool | `lfcp-zmj9zj0` |
 
 ### Connectors
 
@@ -328,8 +328,8 @@ Native options, in order of preference for a demo:
 ```bash
 source scripts/confluent-env.sh
 confluent flink shell \
-  --compute-pool lfcp-125m5jj \
-  --database lkc-pgw3j8k \
+  --compute-pool lfcp-zmj9zj0 \
+  --database lkc-9k5qo5y \
   --cloud aws --region us-east-1
 ```
 

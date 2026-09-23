@@ -12,8 +12,8 @@ Verified 2026-09-23 against the live cluster.
 ```bash
 source scripts/confluent-env.sh
 confluent flink shell \
-  --compute-pool lfcp-125m5jj \
-  --database lkc-pgw3j8k \
+  --compute-pool lfcp-zmj9zj0 \
+  --database lkc-9k5qo5y \
   --cloud aws --region us-east-1
 ```
 
@@ -129,7 +129,7 @@ anyone who looks closely.
 ## Demo script
 
 ```bash
-confluent flink shell --compute-pool lfcp-125m5jj --database lkc-pgw3j8k \
+confluent flink shell --compute-pool lfcp-zmj9zj0 --database lkc-9k5qo5y \
   --cloud aws --region us-east-1
 ```
 

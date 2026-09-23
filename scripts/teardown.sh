@@ -100,6 +100,30 @@ echo "==> Kafka cluster"
 echo "==> Environment"
 try_delete "$PG_ENV_ID" confluent environment delete "$PG_ENV_ID" --force
 
+# Flink API keys are scoped to a CLOUD REGION, not to the environment, so
+# deleting the environment does NOT remove them - they survive as orphans
+# pointing at resources that no longer exist. (The Kafka key is cluster-scoped
+# and does go away with the cluster.) A 2026-09-23 teardown left two stray
+# `priceguard-flink-rest` keys behind exactly this way.
+#
+# Only keys created by this project are matched, by their description, so a
+# teardown can never delete an unrelated key that happens to share the region.
+echo "==> Flink API keys (region-scoped, outlive the environment)"
+for desc in priceguard-flink-rest; do
+  KEYS=$(confluent api-key list --output json 2>/dev/null | python3 -c '
+import sys, json
+try:
+    for k in json.load(sys.stdin):
+        if k.get("description") == sys.argv[1]:
+            print(k.get("key", ""))
+except Exception:
+    pass
+' "$desc" 2>/dev/null)
+  for k in $KEYS; do
+    [[ -n "$k" ]] && try_delete "$k" confluent api-key delete "$k" --force
+  done
+done
+
 rm -f infra.env connectors/*.json
 echo
 echo "Teardown complete. Local generated artifacts removed."
